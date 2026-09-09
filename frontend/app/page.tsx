@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 
+type Route = {
+  route_id: string;
+  route_short_name: string;
+  agency_id: string;
+  route_type: string;
+};
+
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [results, setResults] = useState<
-    {
-      route_id: string;
-      route_short_name: string;
-      agency_id: string;
-      route_type: string;
-    }[]
-  >([]);
+  const [results, setResults] = useState<Route[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -44,7 +44,7 @@ export default function Home() {
       } else {
         setResults(data.routes);
       }
-    } catch (err) {
+    } catch {
       setError(
         "Unable to connect to BusFix backend. Make sure FastAPI is running."
       );
@@ -54,53 +54,66 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      {/* Header */}
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+    <main className="min-h-screen bg-slate-100 text-slate-800">
+
+      {/* ================================================= */}
+      {/* HEADER */}
+      {/* ================================================= */}
+
+      <header className="sticky top-0 z-50 bg-teal-500 text-white shadow-md">
+
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-2xl">
+
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-xl">
               🚌
             </div>
 
             <div>
-              <h1 className="text-xl font-bold tracking-tight">
-                BusFix Hyderabad
+              <h1 className="text-lg font-bold">
+                BusFix
               </h1>
 
-              <p className="text-xs text-slate-500">
-                Public transport information reliability
+              <p className="text-[10px] uppercase tracking-wide text-teal-50">
+                Hyderabad
               </p>
             </div>
+
           </div>
 
-          <button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50">
-            Admin
+
+          <button
+            onClick={() => {
+              window.location.href = "/reports";
+            }}
+            className="rounded-full px-4 py-2 text-sm font-medium transition hover:bg-teal-600"
+          >
+            Reports
           </button>
+
         </div>
+
       </header>
 
-      {/* Hero */}
-      <section className="bg-blue-600">
-        <div className="mx-auto max-w-7xl px-6 py-16">
-          <div className="max-w-3xl">
-            <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-blue-100">
-              Hyderabad Public Transport
+
+      {/* ================================================= */}
+      {/* SEARCH */}
+      {/* ================================================= */}
+
+      <section className="bg-teal-500 pb-8">
+
+        <div className="mx-auto max-w-6xl px-4">
+
+          <div className="rounded-2xl bg-white p-4 shadow-lg">
+
+            <p className="mb-3 text-sm font-semibold text-slate-700">
+              Where do you want to go?
             </p>
 
-            <h2 className="text-4xl font-bold leading-tight text-white md:text-5xl">
-              Is the bus information
-              <br />
-              actually reliable?
-            </h2>
 
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-blue-100">
-              Search bus routes, check available information, and report
-              problems when what you see doesn't match what actually happens.
-            </p>
+            <div className="flex gap-2">
 
-            {/* Search */}
-            <div className="mt-8 flex max-w-2xl flex-col gap-3 sm:flex-row">
               <input
                 type="text"
                 value={searchQuery}
@@ -110,207 +123,258 @@ export default function Home() {
                     handleSearch();
                   }
                 }}
-                placeholder="Search bus number..."
-                className="h-14 flex-1 rounded-xl border-0 bg-white px-5 text-base text-slate-900 shadow-lg outline-none placeholder:text-slate-400 focus:ring-4 focus:ring-blue-300"
+                placeholder="Enter bus number or route"
+                className="h-12 min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-teal-400 focus:bg-white focus:ring-2 focus:ring-teal-100"
               />
 
               <button
                 onClick={handleSearch}
                 disabled={loading}
-                className="h-14 rounded-xl bg-slate-900 px-7 font-semibold text-white shadow-lg transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+                className="h-12 rounded-xl bg-teal-500 px-5 text-sm font-semibold text-white transition hover:bg-teal-600 disabled:opacity-60"
               >
-                {loading ? "Searching..." : "Search Bus"}
+                {loading ? "..." : "Search"}
               </button>
+
             </div>
 
+
             {/* Search Results */}
+
             {(results.length > 0 || error) && (
-              <div className="mt-5 max-w-2xl rounded-xl bg-white p-5 shadow-lg">
+
+              <div className="mt-4 border-t border-slate-100 pt-4">
+
                 {results.length > 0 && (
-                  <>
-                    <p className="mb-3 text-sm font-semibold text-slate-500">
-                      Routes found
+
+                  <div className="space-y-2">
+
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Available routes
                     </p>
 
-                    <div className="space-y-3">
-                      {results.map((route) => (
-                        <button
-                          key={route.route_id}
-                          onClick={() => {
-                            window.location.href = `/route/${encodeURIComponent(
-                              route.route_short_name
-                            )}`;
-                          }}
-                          className="flex w-full items-center justify-between rounded-lg border border-slate-200 p-4 text-left transition hover:border-blue-400 hover:bg-blue-50"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="rounded-lg bg-blue-50 px-3 py-2 font-bold text-blue-700">
-                              🚌 {route.route_short_name}
-                            </div>
 
-                            <div>
-                              <p className="font-medium text-slate-900">
-                                Route {route.route_short_name}
-                              </p>
+                    {results.map((route) => (
 
-                              <p className="text-xs text-slate-500">
-                                TGSRTC · Route type {route.route_type}
-                              </p>
-                            </div>
+                      <button
+                        key={route.route_id}
+                        onClick={() => {
+                          window.location.href = `/route/${encodeURIComponent(
+                            route.route_short_name
+                          )}`;
+                        }}
+                        className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-teal-300 hover:bg-teal-50"
+                      >
+
+                        <div className="flex items-center gap-3">
+
+                          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-teal-50 px-1 text-xs font-bold text-teal-600">
+                            {route.route_short_name}
                           </div>
 
-                          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                            Available →
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </>
+                          <div>
+
+                            <p className="text-sm font-semibold">
+                              Route {route.route_short_name}
+                            </p>
+
+                            <p className="text-xs text-slate-400">
+                              TGSRTC · View route
+                            </p>
+
+                          </div>
+
+                        </div>
+
+                        <span className="text-lg text-teal-500">
+                          →
+                        </span>
+
+                      </button>
+
+                    ))}
+
+                  </div>
+
                 )}
+
 
                 {error && (
-                  <p className="text-sm font-medium text-red-600">{error}</p>
+                  <p className="text-sm font-medium text-red-500">
+                    {error}
+                  </p>
                 )}
+
               </div>
+
             )}
+
           </div>
+
         </div>
+
       </section>
 
-      {/* Quick Actions */}
-      <section className="mx-auto max-w-7xl px-6 py-10">
-        <h3 className="text-lg font-bold">What do you want to do?</h3>
 
-        <p className="mt-1 text-sm text-slate-500">
-          Get information or help us identify transport information problems.
+      {/* ================================================= */}
+      {/* MAIN NAVIGATION */}
+      {/* ================================================= */}
+
+      <section className="mx-auto max-w-6xl px-4 py-7">
+
+        <h2 className="text-base font-bold text-slate-800">
+          What are you looking for?
+        </h2>
+
+        <p className="mt-1 text-xs text-slate-400">
+          Find buses, stops, plan your journey or report a problem.
         </p>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <ActionCard
+
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+
+          {/* Plan Journey */}
+
+          <QuickAction
             icon="🚌"
-            title="Find a Bus"
-            description="Search routes, stops and available schedules."
+            title="Plan Journey"
+            description="Find buses from A to B"
+            onClick={() => {
+              window.location.href = "/journey";
+            }}
           />
 
-          <ActionCard
+
+          {/* Find Stop */}
+
+          <QuickAction
             icon="📍"
-            title="Find a Stop"
-            description="Find bus stops and the routes serving them."
+            title="Find Stop"
+            description="Find bus stops"
+            onClick={() => {
+              window.location.href = "/stops";
+            }}
           />
 
-          {/* Report Issue */}
-          <ActionCard
+
+          {/* Report Problem */}
+
+          <QuickAction
             icon="🚨"
-            title="Report an Issue"
-            description="Tell us when bus information doesn't match reality."
+            title="Report Problem"
+            description="Report an information issue"
             onClick={() => {
               window.location.href = "/report";
             }}
           />
 
-          <ActionCard
-            icon="📊"
-            title="View Reliability"
-            description="See information reliability across routes and stops."
+
+          {/* Recent Problems */}
+
+          <QuickAction
+            icon="📝"
+            title="Recent Problems"
+            description="See passenger reports"
+            onClick={() => {
+              window.location.href = "/reports";
+            }}
           />
+
         </div>
+
       </section>
 
-      {/* Information Health */}
-      <section className="mx-auto max-w-7xl px-6 pb-12">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-            <div>
-              <h3 className="text-lg font-bold">
-                Hyderabad Information Health
-              </h3>
 
-              <p className="text-sm text-slate-500">
-                Demo data — we'll replace this with real observations later.
-              </p>
-            </div>
+      {/* ================================================= */}
+      {/* RECENT PROBLEMS */}
+      {/* ================================================= */}
 
-            <span className="w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-              MVP Preview
-            </span>
+      <section className="mx-auto max-w-6xl px-4 pb-10">
+
+        <div className="mb-3 flex items-center justify-between">
+
+          <div>
+
+            <h2 className="text-base font-bold text-slate-800">
+              Recent Problems Reported
+            </h2>
+
+            <p className="text-xs text-slate-400">
+              Latest passenger observations
+            </p>
+
           </div>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
-            <HealthCard
-              value="92%"
-              label="Information Available"
-              description="Bus and route information currently visible"
-              type="good"
-            />
 
-            <HealthCard
-              value="6%"
-              label="Reported Issues"
-              description="Information discrepancies reported"
-              type="warning"
-            />
+          <button
+            onClick={() => {
+              window.location.href = "/reports";
+            }}
+            className="text-xs font-semibold text-teal-600"
+          >
+            View all →
+          </button>
 
-            <HealthCard
-              value="2%"
-              label="Critical Issues"
-              description="Repeated or severe information failures"
-              type="critical"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Recent Issues */}
-      <section className="mx-auto max-w-7xl px-6 pb-16">
-        <div className="mb-5">
-          <h3 className="text-lg font-bold">Recent Reported Problems</h3>
-
-          <p className="text-sm text-slate-500">
-            Examples of issues passengers can report.
-          </p>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          <IssueRow
+
+        <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+
+          <ProblemRow
             route="216D"
             stop="Ameerpet"
-            issue="Bus arrived but was not shown in the app"
-            time="Today, 8:35 AM"
+            issue="Bus arrived but was not shown"
             status="Reported"
           />
 
-          <IssueRow
-            route="218"
+          <ProblemRow
+            route="227"
             stop="Uppal"
             issue="Schedule information unavailable"
-            time="Today, 9:10 AM"
-            status="Under review"
-          />
-
-          <IssueRow
-            route="24B"
-            stop="Secunderabad"
-            issue="Live tracking unavailable"
-            time="Yesterday, 6:45 PM"
             status="Reported"
           />
+
+          <ProblemRow
+            route="229"
+            stop="Secunderabad"
+            issue="Live tracking unavailable"
+            status="Reported"
+          />
+
         </div>
+
       </section>
 
-      {/* Footer */}
+
+      {/* ================================================= */}
+      {/* FOOTER */}
+      {/* ================================================= */}
+
       <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-6 text-center text-sm text-slate-500">
-          BusFix Hyderabad · Independent student project · Not affiliated with
-          TGSRTC
+
+        <div className="mx-auto max-w-6xl px-4 py-5 text-center">
+
+          <p className="text-xs text-slate-400">
+            BusFix Hyderabad
+          </p>
+
+          <p className="mt-1 text-[10px] text-slate-400">
+            Independent student project · Not affiliated with TGSRTC
+          </p>
+
         </div>
+
       </footer>
+
     </main>
   );
 }
 
-/* ---------------- Components ---------------- */
 
-function ActionCard({
+/* ================================================= */
+/* QUICK ACTION */
+/* ================================================= */
+
+function QuickAction({
   icon,
   title,
   description,
@@ -324,89 +388,66 @@ function ActionCard({
   return (
     <button
       onClick={onClick}
-      className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-md"
+      className="rounded-2xl bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-xl">
+
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-50 text-lg">
         {icon}
       </div>
 
-      <h4 className="font-semibold group-hover:text-blue-600">
+      <h3 className="mt-3 text-sm font-bold text-slate-800">
         {title}
-      </h4>
+      </h3>
 
-      <p className="mt-2 text-sm leading-6 text-slate-500">
+      <p className="mt-1 text-[11px] text-slate-400">
         {description}
       </p>
+
     </button>
   );
 }
 
-function HealthCard({
-  value,
-  label,
-  description,
-  type,
-}: {
-  value: string;
-  label: string;
-  description: string;
-  type: "good" | "warning" | "critical";
-}) {
-  const styles = {
-    good: "bg-emerald-50 text-emerald-700",
-    warning: "bg-amber-50 text-amber-700",
-    critical: "bg-red-50 text-red-700",
-  };
 
-  return (
-    <div className="rounded-xl bg-slate-50 p-5">
-      <div
-        className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl text-lg font-bold ${styles[type]}`}
-      >
-        {value}
-      </div>
+/* ================================================= */
+/* PROBLEM ROW */
+/* ================================================= */
 
-      <h4 className="font-semibold">{label}</h4>
-
-      <p className="mt-1 text-sm leading-5 text-slate-500">
-        {description}
-      </p>
-    </div>
-  );
-}
-
-function IssueRow({
+function ProblemRow({
   route,
   stop,
   issue,
-  time,
   status,
 }: {
   route: string;
   stop: string;
   issue: string;
-  time: string;
   status: string;
 }) {
   return (
-    <div className="flex flex-col gap-4 border-b border-slate-100 p-5 last:border-0 md:flex-row md:items-center md:justify-between">
-      <div className="flex items-start gap-4">
-        <div className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700">
-          {route}
-        </div>
+    <div className="flex items-center gap-3 border-b border-slate-100 p-4 last:border-0">
 
-        <div>
-          <p className="font-medium">{issue}</p>
-
-          <p className="mt-1 text-sm text-slate-500">
-            {stop} · {time}
-          </p>
-        </div>
+      <div className="flex h-10 min-w-14 items-center justify-center rounded-lg bg-teal-50 px-2 text-xs font-bold text-teal-600">
+        {route}
       </div>
 
-      <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+
+      <div className="min-w-0 flex-1">
+
+        <p className="truncate text-sm font-medium text-slate-700">
+          {issue}
+        </p>
+
+        <p className="mt-1 text-xs text-slate-400">
+          📍 {stop}
+        </p>
+
+      </div>
+
+
+      <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-600">
         {status}
       </span>
+
     </div>
   );
 }
