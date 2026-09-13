@@ -8,7 +8,6 @@ const RouteMap = dynamic(() => import("../../Map"), {
   ssr: false,
 });
 
-
 type Stop = {
   direction_id: string;
   stop_sequence: string;
@@ -33,40 +32,53 @@ export default function RoutePage() {
   const routeId = params.routeId as string;
 
   const [stops, setStops] = useState<Stop[]>([]);
-  const [trip, setTrip] = useState<Trip | null>(null);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [selectedDirection, setSelectedDirection] = useState<string | null>(
+    null
+  );
 
+  const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
+  const [stopsLoading, setStopsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Load the available directions for this route.
   useEffect(() => {
-    async function fetchRouteData() {
+    async function fetchRouteTrips() {
       try {
-        const [stopsResponse, tripsResponse] = await Promise.all([
-          fetch(
-            `http://127.0.0.1:8000/routes/${encodeURIComponent(
-              routeId
-            )}/stops`
-          ),
-          fetch(
-            `http://127.0.0.1:8000/routes/${encodeURIComponent(
-              routeId
-            )}/trips`
-          ),
-        ]);
+        setLoading(true);
+        setError("");
 
-        if (!stopsResponse.ok || !tripsResponse.ok) {
-          throw new Error("Failed to fetch route information");
+        const response = await fetch(
+          `http://127.0.0.1:8000/routes/${encodeURIComponent(
+            routeId
+          )}/trips`
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch route trips");
         }
 
-        const stopsData = await stopsResponse.json();
-        const tripsData = await tripsResponse.json();
+        const data = await response.json();
+        const routeTrips: Trip[] = data.trips || [];
 
-        setStops(stopsData.stops);
+        // Keep one representative trip per GTFS direction.
+        const uniqueDirections = Array.from(
+          new Map(
+            routeTrips.map((item) => [item.direction_id, item])
+          ).values()
+        );
 
-        if (tripsData.trips.length > 0) {
-          setTrip(tripsData.trips[0]);
+        setTrips(uniqueDirections);
+
+        if (uniqueDirections.length > 0) {
+          setSelectedDirection(uniqueDirections[0].direction_id);
+          setTrip(uniqueDirections[0]);
+        } else {
+          setSelectedDirection(null);
+          setTrip(null);
         }
-      } catch (err) {
+      } catch {
         setError(
           "Unable to load route information. Make sure FastAPI is running."
         );
@@ -75,12 +87,55 @@ export default function RoutePage() {
       }
     }
 
-    fetchRouteData();
+    fetchRouteTrips();
   }, [routeId]);
+
+  // Load stops only for the selected direction.
+  useEffect(() => {
+    if (selectedDirection === null) return;
+
+    async function fetchDirectionStops() {
+      try {
+        setStopsLoading(true);
+        setError("");
+
+        const response = await fetch(
+          `http://127.0.0.1:8000/routes/${encodeURIComponent(
+            routeId
+          )}/stops?direction_id=${encodeURIComponent(
+            selectedDirection
+          )}`
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch route stops");
+        }
+
+        const data = await response.json();
+        setStops(data.stops || []);
+      } catch {
+        setStops([]);
+        setError(
+          "Unable to load stops for this direction. Make sure FastAPI is running."
+        );
+      } finally {
+        setStopsLoading(false);
+      }
+    }
+
+    fetchDirectionStops();
+  }, [routeId, selectedDirection]);
+
+  function selectDirection(directionId: string) {
+    const selectedTrip =
+      trips.find((item) => item.direction_id === directionId) || null;
+
+    setSelectedDirection(directionId);
+    setTrip(selectedTrip);
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
-      {/* Header */}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
@@ -92,7 +147,6 @@ export default function RoutePage() {
               <h1 className="text-xl font-bold tracking-tight">
                 BusFix Hyderabad
               </h1>
-
               <p className="text-xs text-slate-500">
                 Public transport information reliability
               </p>
@@ -110,7 +164,6 @@ export default function RoutePage() {
         </div>
       </header>
 
-      {/* Route Header */}
       <section className="bg-blue-600">
         <div className="mx-auto max-w-7xl px-6 py-12">
           <p className="text-sm font-semibold uppercase tracking-wider text-blue-100">
@@ -133,30 +186,66 @@ export default function RoutePage() {
         </div>
       </section>
 
-      {/* Main Content */}
       <section className="mx-auto max-w-7xl px-6 py-10">
         {loading && (
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-slate-500">
-              Loading route information...
-            </p>
+            <p className="text-slate-500">Loading route information...</p>
           </div>
         )}
 
         {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-6">
             <p className="font-medium text-red-700">{error}</p>
           </div>
         )}
 
         {!loading && !error && (
           <>
-            {/* Route Summary */}
+            {/* Direction selector */}
+            {trips.length > 1 && (
+              <div className="mb-8">
+                <div className="mb-3">
+                  <h3 className="text-lg font-bold">Route direction</h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Each direction is a separate scheduled journey. The route
+                    ends at the final stop shown below.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  {trips.map((directionTrip) => {
+                    const active =
+                      selectedDirection === directionTrip.direction_id;
+
+                    return (
+                      <button
+                        key={directionTrip.direction_id}
+                        onClick={() =>
+                          selectDirection(directionTrip.direction_id)
+                        }
+                        className={`rounded-xl border px-5 py-3 text-left transition ${
+                          active
+                            ? "border-blue-600 bg-blue-600 text-white"
+                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        <p className="text-xs font-semibold uppercase tracking-wide opacity-75">
+                          Direction {directionTrip.direction_id}
+                        </p>
+
+                        <p className="mt-1 text-sm font-bold">
+                          {directionTrip.route_description ||
+                            `Direction ${directionTrip.direction_id}`}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="grid gap-4 sm:grid-cols-3">
-              <InfoCard
-                label="Route"
-                value={routeId}
-              />
+              <InfoCard label="Route" value={routeId} />
 
               <InfoCard
                 label="Direction"
@@ -165,19 +254,19 @@ export default function RoutePage() {
 
               <InfoCard
                 label="Scheduled Stops"
-                value={stops.length.toString()}
+                value={
+                  stopsLoading ? "..." : stops.length.toString()
+                }
               />
             </div>
 
-            {/* Trip Information */}
             {trip && (
               <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="text-xl font-bold">
-                  Route Journey
-                </h3>
+                <h3 className="text-xl font-bold">Route Journey</h3>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  Information from the scheduled GTFS trip.
+                  Information from the scheduled GTFS trip for the selected
+                  direction.
                 </p>
 
                 <div className="mt-5 rounded-xl bg-blue-50 p-5">
@@ -196,37 +285,43 @@ export default function RoutePage() {
               </div>
             )}
 
-            {/* Stops */}
+            {/* Route Map */}
             <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="mb-6">
-                <h3 className="text-xl font-bold">
-                  Scheduled Stops
-                </h3>
+                <h3 className="text-xl font-bold">Route Map</h3>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  Stops and scheduled arrival times from the GTFS dataset.
+                  The map shows only the selected direction. Information
+                  health markers are based on passenger observations.
                 </p>
               </div>
 
+              {stopsLoading ? (
+                <div className="flex h-[500px] items-center justify-center rounded-xl bg-slate-100 text-sm text-slate-500">
+                  Loading direction...
+                </div>
+              ) : (
+                <RouteMap stops={stops} />
+              )}
+            </div>
 
-              {/* Route Map */}
-<div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-  <div className="mb-6">
-    <h3 className="text-xl font-bold">
-      Route Map
-    </h3>
+            {/* Stops */}
+            <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="mb-6">
+                <h3 className="text-xl font-bold">Scheduled Stops</h3>
 
-    <p className="mt-1 text-sm text-slate-500">
-      Map based on the stop coordinates provided in the GTFS dataset.
-    </p>
-  </div>
+                <p className="mt-1 text-sm text-slate-500">
+                  Stops and scheduled arrival times for the selected direction.
+                </p>
+              </div>
 
-  <RouteMap stops={stops} />
-</div>
-
-              {stops.length === 0 ? (
+              {stopsLoading ? (
                 <p className="text-sm text-slate-500">
-                  No scheduled stops found for this route.
+                  Loading stops...
+                </p>
+              ) : stops.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  No scheduled stops found for this direction.
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -235,12 +330,10 @@ export default function RoutePage() {
                       key={`${stop.stop_id}-${stop.stop_sequence}-${index}`}
                       className="flex items-center gap-4 rounded-xl border border-slate-100 bg-slate-50 p-4"
                     >
-                      {/* Stop Number */}
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
                         {stop.stop_sequence}
                       </div>
 
-                      {/* Stop Details */}
                       <div className="min-w-0 flex-1">
                         <p className="font-semibold text-slate-900">
                           {stop.stop_name}
@@ -251,7 +344,6 @@ export default function RoutePage() {
                         </p>
                       </div>
 
-                      {/* Time */}
                       <div className="text-right">
                         <p className="text-sm font-semibold text-slate-700">
                           {stop.arrival_time}
@@ -267,7 +359,6 @@ export default function RoutePage() {
               )}
             </div>
 
-            {/* Information Notice */}
             <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-5">
               <p className="text-sm font-semibold text-amber-800">
                 ⚠️ Information reliability note
@@ -276,14 +367,13 @@ export default function RoutePage() {
               <p className="mt-1 text-sm leading-6 text-amber-700">
                 These are scheduled transport details from the GTFS dataset.
                 They represent planned information and should not be treated
-                as proof of the bus's actual arrival time.
+                as proof of the bus&apos;s actual arrival time.
               </p>
             </div>
           </>
         )}
       </section>
 
-      {/* Footer */}
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto max-w-7xl px-6 py-6 text-center text-sm text-slate-500">
           BusFix Hyderabad · Independent student project · Not affiliated with
@@ -293,8 +383,6 @@ export default function RoutePage() {
     </main>
   );
 }
-
-/* ---------------- Info Card ---------------- */
 
 function InfoCard({
   label,
@@ -306,7 +394,6 @@ function InfoCard({
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <p className="text-sm text-slate-500">{label}</p>
-
       <p className="mt-1 text-2xl font-bold">{value}</p>
     </div>
   );
